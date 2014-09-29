@@ -305,6 +305,12 @@ printf("%d\tframes will enter the calculation.\n", num);}
 /********************************************************************************************************/
 
 DIM = (int) ( pow(all_frames*2, 0.2 ) + 0.5);
+if (DIM > 40)
+{
+	if(VERBOSE == YES)
+	{printf("Too many frames in the PCA file. Aborting ...\n");}
+	exit(1);
+}
 rewind (fp);
 if(VERBOSE == YES)
 {printf("Second pass to populate the 5D matrix ...\n");
@@ -688,13 +694,383 @@ while ( (float) matrix_max > cutoff )
 	{
 		if (VERBOSE == YES)
 		{printf("%.2f%% of frames have been clustered.\n", 100.0 * sum_frames / all_frames);}
-	}	
-	end = clock();
-	time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	/************************************************************************/
+	/*									*/
+	/*If the percentage of frames assigned to clusters is less than 10%,	*/
+	/*repeat the whole procedure without smoothing				*/ 
+	/*									*/
+	/************************************************************************/
+	
+	
+	
+	
+	
+	
+	if ( (100.0 * sum_frames / all_frames) < 10 )
+	{
+		if (VERBOSE == YES) 
+		{printf("Too few frames assigned to clusters.\nRepeating the procedure without smoothing:\n");}
+		for ( i=0 ; i <= DIM ; i++ )
+		for ( k=0 ; k <= DIM ; k++ )
+		for ( j=0 ; j <= DIM ; j++ )
+		for ( l=0 ; l <= DIM ; l++ )
+		for ( m=0 ; m <= DIM ; m++ )
+		{
+			matrix[i][k][j][l][m] = original_matrix[i][k][j][l][m];
+		}
+
+		N = 0;
+		sum = 0.0;
+		mean = 0.0;
+		for ( i=0 ; i <= DIM ; i++ )
+		for ( k=0 ; k <= DIM ; k++ )
+		for ( j=0 ; j <= DIM ; j++ )
+		for ( l=0 ; l <= DIM ; l++ )
+		for ( m=0 ; m <= DIM ; m++ )
+		{
+			value = matrix[i][k][j][l][m];
+			if ( value > 0 )
+			{
+				sum += value;
+				N++;
+			}
+			if ( value > add )
+			{
+				printf("Error. Increase ... and recompile.\n");
+				exit(1);
+			}		
+		}	
+		mean = sum / N;			
+
+
+		sum_sd = 0.0;
+		val = 0.0;
+		for ( i=0 ; i <= DIM ; i++ )
+		for ( k=0 ; k <= DIM ; k++ )
+		for ( j=0 ; j <= DIM ; j++ )
+		for ( l=0 ; l <= DIM ; l++ )
+		for ( m=0 ; m <= DIM ; m++ )
+		{
+			value = matrix[i][k][j][l][m];
+			if ( value > 0 )
+			{
+				val = ( value - mean);
+				sum_sd += (val * val);
+			}
+		}
+		variance = sum_sd / N;
+		sd = sqrt (variance);
+
+/************************************************************************************************************************/
+/*															*/
+/*Automatically calculation of the density threshold									*/
+/*															*/
+/************************************************************************************************************************/
+
+		if ( AUTO_FRACTION == NO )
+		{
+			if (VERBOSE == YES)
+			{printf ("Testing density threshold: ");
+			fflush(stdout);}
+			frames =(int) ( (all_frames * FRACTION / 100) + 0.5 );
+			frames_count = all_frames;
+			times = 0;
+			sd_pointer = 0.0;
+			while ( frames <= frames_count )
+			{
+				cutoff = mean + ( sd_pointer * sd );
+				frames_count = 0;
+				for ( i=0 ; i <= DIM ; i++ )
+				for ( k=0 ; k <= DIM ; k++ )
+				for ( j=0 ; j <= DIM ; j++ )
+				for ( l=0 ; l <= DIM ; l++ )
+				for ( m=0 ; m <= DIM ; m++ )
+				{
+					value1 = original_matrix[i][k][j][l][m];
+					value = matrix[i][k][j][l][m];
+					if ( (float) value >= cutoff)
+					{
+						frames_count += value1;
+					}
+				}
+				if (VERBOSE == YES)
+				{printf("%10.2f\b\b\b\b\b\b\b\b\b\b", cutoff);
+				fflush(stdout);}
+				if ( frames >= frames_count )
+				{
+					break;
+				}
+				times++;
+				sd_pointer = times * 0.1000l;
+			}
+			if (VERBOSE == YES)
+			{printf("\n");}
+			if (VERBOSE == YES)
+			{printf ("Density threshold set to %.2f.\n", cutoff);}
+		}
+
+/********************************************************************************************************/
+/*													*/
+/*Calculation of the density threshold from the given argument						*/
+/*													*/
+/********************************************************************************************************/
+
+
+
+		if ( AUTO_FRACTION == YES )
+		{
+			frames = 1;
+			times = 0;
+			sd_pointer = 0.0;
+			local_variance = variance ;
+			if (VERBOSE == YES)
+			{printf ("Testing density threshold: ");
+			fflush(stdout);}
+			while ( 100.0 * (local_variance/variance) > 40.0 && frames > 0 )
+			{
+				if ( times != 0 )
+				{previous_func = func;}
+				cutoff = mean + ( sd_pointer * sd );
+				pixels = 0;
+				frames = 0;
+				local_sum_sd = 0.0;
+				for ( i=0 ; i <= DIM ; i++ )
+				for ( k=0 ; k <= DIM ; k++ )
+				for ( j=0 ; j <= DIM ; j++ )
+				for ( l=0 ; l <= DIM ; l++ )
+				for ( m=0 ; m <= DIM ; m++ )
+				{
+					value = matrix[i][k][j][l][m];
+					if ( (float) value >= cutoff )
+					{
+						pixels++;
+						frames += value;
+						local_val = (value - mean);
+						local_sum_sd += (local_val * local_val);
+					}
+				}
 		
-	if (VERBOSE == YES)
-	{printf("All done in %.1f minutes.\n", time_spent / 60);}
-	return 0;
+				local_variance = local_sum_sd / N ;
+	
+				if ( times == 0 )
+				{pixel_0 = pixels;}
+
+				func = (100.0 * frames/all_frames) * pow( (100.0 * local_variance/variance), -(double)(pixels) / pixel_0 );
+		
+				if( times == 0 )
+				{previous_func = func;}	
+
+				if ( func < previous_func )
+				{
+					sd_pointer = previous_sd_pointer;
+					pixels = previous_pixels;
+					frames = previous_frames;
+					break;
+				}
+				if (VERBOSE == YES)
+				{printf("%10.2f\b\b\b\b\b\b\b\b\b\b", cutoff);
+				fflush(stdout);}
+				previous_sd_pointer = sd_pointer;
+				previous_pixels = pixels;
+				previous_frames = frames;
+				times++;
+				sd_pointer = times * 0.1000l;
+			}
+			cutoff =  mean + ( sd_pointer * sd );
+			if (VERBOSE == YES)
+			{printf("\n");}
+			if (VERBOSE == YES)
+			{printf ("Density threshold set to %.2f.\n", cutoff);}
+		}
+
+
+
+/************************/
+/*			*/			
+/*Clustering		*/
+/*			*/
+/************************/
+
+
+
+/****************************************************************/
+/*								*/
+/*Finding the pixel with the maximum value			*/
+/*								*/
+/****************************************************************/
+
+
+		matrix_max = matrix[0][0][0][0][0];
+		for ( i=0 ; i <= DIM ; i++ )
+		for ( k=0 ; k <= DIM ; k++ )
+		for ( j=0 ; j <= DIM ; j++ )
+		for ( l=0 ; l <= DIM ; l++ )
+		for ( m=0 ; m <= DIM ; m++ )
+		{
+			value = matrix[i][k][j][l][m];
+			if ( value > matrix_max )
+			{
+				matrix_max = value;
+				pointer1 = i;
+				pointer2 = k;
+				pointer3 = j;
+				pointer4 = l;
+				pointer5 = m;
+			}
+		}
+
+
+
+/************************************************************************/
+/*									*/
+/*Creating the output files and clustering using the recursive function	*/
+/*									*/
+/************************************************************************/
+
+		op = fopen ("carma.5-D.clusters.dat", "w+");
+		if (VERBOSE == YES)
+		{printf("Clustering now ...\n");}
+
+		while ( (float) matrix_max > cutoff )
+		{
+	
+			cluster_pixels = 0;
+			cluster_frames = 0;
+			recursion (pointer1,pointer2,pointer3,pointer4,pointer5);
+
+
+/****************************************************************************************/
+/*											*/
+/* PCA file pass to write the frames that belong to this cluster			*/
+/*and to calculate the percentage of pixels and frames					*/
+/*											*/
+/****************************************************************************************/
+
+
+
+			rewind(fp);
+			while( ( fgets (line, sizeof(line), fp) ) != NULL )
+			{
+				if ( (sscanf(line,"%d   %f   %f   %f   %f   %f",&num,&pca1,&pca2,&pca3,&pca4,&pca5)) == 6 )
+				{
+					pointer1= (int)( ((pca1 - pca1_min) / (pca1_max - pca1_min)) * DIM + 0.5);
+					pointer2= (int)( ((pca2 - pca2_min) / (pca2_max - pca2_min)) * DIM + 0.5);
+					pointer3= (int)( ((pca3 - pca3_min) / (pca3_max - pca3_min)) * DIM + 0.5);
+					pointer4= (int)( ((pca4 - pca4_min) / (pca4_max - pca4_min)) * DIM + 0.5);
+					pointer5= (int)( ((pca5 - pca5_min) / (pca5_max - pca5_min)) * DIM + 0.5);
+	
+					if ( -matrix[pointer1][pointer2][pointer3][pointer4][pointer5] >= add + cutoff )
+					{
+						fprintf (op,"%10d  %10d  %10f   %10f   %10f   %10f   %10f\n", num,cluster_num,pca1,pca2,pca3,pca4,pca5);
+						cluster_frames++;
+					}
+	 			}
+			}
+			for ( i=0 ; i <= DIM ; i++ )
+			for ( k=0 ; k <= DIM ; k++ )
+			for ( j=0 ; j <= DIM ; j++ )
+			for ( l=0 ; l <= DIM ; l++ )
+			for ( m=0 ; m <= DIM ; m++ )
+			{
+				value = -matrix[i][k][j][l][m];
+				if ( value >= add + cutoff )
+				{
+					cluster_pixels++;
+				}
+			}
+	
+			if (VERBOSE == YES)
+			{printf ("Cluster %5d located, contains %10d frames.\n", cluster_num, cluster_frames);}
+	sum_frames += cluster_frames;
+			if ( cluster_frames > max_cluster_frames )
+			{
+				max_cluster_frames = cluster_frames;
+			}
+			if ( cluster_num == 20 )
+			{
+				cutoff_number_of_frames = max_cluster_frames / 10000;
+			}
+			if ( cutoff_number_of_frames > 0 && cluster_frames < cutoff_number_of_frames )
+			{
+				if (VERBOSE == YES)
+				{printf ("With several small (<%d frames) clusters following ...\n", (int) cutoff_number_of_frames);}
+				end = clock();
+				time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
+				if (VERBOSE == YES)
+				{printf("All done in %.1f minutes.\n", time_spent / 60);}
+				exit(1);
+			}
+				cluster_num++;
+
+
+/****************************************************************************************/
+/*											*/				
+/*Finding the pixel with the next maximum value	and repeating				*/
+/*the above steps until the value of pixel reaches the threshold			*/
+/*											*/
+/****************************************************************************************/
+
+
+			matrix_max = matrix[0][0][0][0][0];
+			for ( i=0 ; i <= DIM ; i++ )
+			for ( k=0 ; k <= DIM ; k++ )
+			for ( j=0 ; j <= DIM ; j++ )
+			for ( l=0 ; l <= DIM ; l++ )
+			for ( m=0 ; m <= DIM ; m++ )
+			{
+				value = matrix[i][k][j][l][m];
+				if ( value > matrix_max && value < MIN_ADD )
+				{
+					matrix_max = value;
+					pointer1 = i;
+					pointer2 = k;
+					pointer3 = j;
+					pointer4 = l;
+					pointer5 = m;
+				}
+			}
+
+			add += 1000000;
+		}
+		fclose(op);
+		if ( AUTO_FRACTION == YES )
+		{
+			if (VERBOSE == YES)
+			{printf("%.2f%% of frames have been clustered.\n", 100.0 * sum_frames / all_frames);}
+		}	                                
+	}	
+	
+	
+	
+	/********************************/
+	/*				*/
+	/*End of repeating procedure	*/
+	/*				*/
+	/********************************/
+	
+		
+	
+	
+
+		end = clock();
+		time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
+			
+		if (VERBOSE == YES)
+		{printf("All done in %.1f minutes.\n", time_spent / 60);}
+		return 0;
 }
 
 
