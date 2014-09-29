@@ -1,30 +1,30 @@
-NAME
+**NAME**
 
 cluster5D – a  C program for clustering 5-dimensional PCA data
 
 
-SYNOPSIS
+**SYNOPSIS**
 
 cluster5D [-v] [-fract <integer>] [PCA filename]
 
 
-DESCRIPTION
+**DESCRIPTION**
 
 cluster5D is a program that performs 5-dimensional clustering based on PCA data. It is written in the C programming language and is available for Linux, MACOSX and Windows. The program needs only a PCA file with 5 or more columns of numbers with the format described below in order to run and gives the user the opportunity for more specific clustering options.
 
 
-VERSION
+**VERSION**
 
 Version 0.1, September 2014
 
  
 
-AUTHOR
+**AUTHOR**
 
 cluster5D has been developed by Athanasios Baltzis, under the supervision of Prof. Nicholas M. Glykos at the Department of Molecular Biology and Genetics of Democritus University of Thrace, Greece.
 
 
-LICENCE
+**LICENCE**
 
 Copyright (c) 2014, Athanasios Baltzis
 
