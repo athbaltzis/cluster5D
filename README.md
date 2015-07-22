@@ -15,7 +15,7 @@ cluster5D is a program that performs 5-dimensional clustering based on PCA data.
 
 **VERSION**
 
-Version 0.1, September 2014
+Version 1.3, July 2015
 
  
 
@@ -26,7 +26,7 @@ cluster5D has been developed by Athanasios Baltzis, under the supervision of Pro
 
 **LICENCE**
 
-Copyright (c) 2014, Athanasios Baltzis
+Copyright (c) 2014-2015, Athanasios Baltzis
 
 All rights reserved.
 
